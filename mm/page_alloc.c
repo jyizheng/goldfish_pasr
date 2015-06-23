@@ -140,8 +140,8 @@ static void hc_mm_page_alloc_zone_locked(struct page *page, unsigned int order,
 static void hc_mm_page_pcpu_drain(struct page *page, unsigned int order,
 			int migratetype)
 {
-	kvm_hypercall3(KVM_HC_PASR_MM_PAGE_PCPU_DRAIN, (unsigned long)page,
-			page ? page_to_pfn(page) : 0, migratetype);
+	kvm_hypercall4(KVM_HC_PASR_MM_PAGE_PCPU_DRAIN, (unsigned long)page,
+			page ? page_to_pfn(page) : 0, order, migratetype);
 }
 
 static void hc_mm_page_alloc_extfrag(struct page *page,
