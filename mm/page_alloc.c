@@ -100,10 +100,6 @@ out:
 	{
 		page = alloc_pages(GFP_KERNEL, 4);
 		__free_pages(page, 4);
-#ifdef CONFIG_PASR_HYPERCALL
-		kvm_hypercall1(KVM_HC_PASR_MALLOC, 0);
-#endif
-
 	}
 
 	printk(KERN_INFO "Totoal free page: %d\n", i);
@@ -112,76 +108,51 @@ out:
 EXPORT_SYMBOL(print_buddy_freelist);
 #endif
 
-#ifdef CONFIG_PRINT_ALLOC_FREE_REQ
-int mem_initialized = 0;
-EXPORT_SYMBOL(mem_initialized);
-
-static void printk_mm_page_free(struct page *page, unsigned int order)
+#ifdef CONFIG_PASR_HYPERCALL
+static void hc_mm_page_free(struct page *page, unsigned int order)
 {
-	printk("%s: page=%p pfn=%lu order=%d\n",
-			__func__,
-			page,
-			page_to_pfn(page),
-			order);
+	kvm_hypercall3(KVM_HC_PASR_MM_PAGE_FREE, (unsigned long)page,
+			page ? page_to_pfn(page) : 0, order);
 }
 
-static void  printk_mm_page_free_batched(struct page *page, int cold)
+static void  hc_mm_page_free_batched(struct page *page, int cold)
 {
-	printk("%s: page=%p pfn=%lu order=0 cold=%d\n",
-			__func__,
-			page,
-			page_to_pfn(page),
-			cold);
+	kvm_hypercall3(KVM_HC_PASR_MM_PAGE_FREE_BATCHED, (unsigned long)page,
+			page ? page_to_pfn(page) : 0, cold);
 }
 
-static void printk_mm_page_alloc(struct page *page, unsigned int order,
+static void hc_mm_page_alloc(struct page *page, unsigned int order,
 			gfp_t gfp_flags, int migratetype)
 {
-	printk("%s: page=%p pfn=%lu order=%d migratetype=%d gfp_flags=%x\n",
-		__func__,
-		page,
-		page ? page_to_pfn(page) : 0,
-		order,
-		migratetype,
-		gfp_flags);
+	unsigned long packed = order | (migratetype << 4);
+	kvm_hypercall4(KVM_HC_PASR_MM_PAGE_ALLOC, (unsigned long)page,
+			page ? page_to_pfn(page) : 0, packed, gfp_flags);
 }
 
-static void printk_mm_page_alloc_zone_locked(struct page *page, unsigned int order, int migratetype)
+static void hc_mm_page_alloc_zone_locked(struct page *page, unsigned int order,
+							int migratetype)
 {
-	printk("%s: page=%p pfn=%lu order=%u migratetype=%d percpu_refill=%d\n",
-		__func__,
-		page,
-		page ? page_to_pfn(page) : 0,
-		order,
-		migratetype,
-		order == 0);
+	kvm_hypercall4(KVM_HC_PASR_MM_PAGE_ALLOC_ZONE_LOCKED, (unsigned long)page,
+			page ? page_to_pfn(page) : 0, order, migratetype);
+
 }
 
-static void  printk_mm_page_pcpu_drain(struct page *page, unsigned int order,
+static void hc_mm_page_pcpu_drain(struct page *page, unsigned int order,
 			int migratetype)
 {
-	printk("%s: page=%p pfn=%lu order=%d migratetype=%d\n",
-			__func__,
-			page, page_to_pfn(page),
-			order, migratetype);
+	kvm_hypercall3(KVM_HC_PASR_MM_PAGE_PCPU_DRAIN, (unsigned long)page,
+			page ? page_to_pfn(page) : 0, migratetype);
 }
 
-static void  printk_mm_page_alloc_extfrag(struct page *page,
+static void hc_mm_page_alloc_extfrag(struct page *page,
 			int alloc_order, int fallback_order,
 			int alloc_migratetype, int fallback_migratetype)
 {
-	if (!mem_initialized) return;
-	printk("%s: page=%p pfn=%lu alloc_order=%d fallback_order=%d pageblock_order=%d alloc_migratetype=%d fallback_migratetype=%d fragmenting=%d change_ownership=%d\n",
-		__func__,
-		page,
-		page_to_pfn(page),
-		alloc_order,
-		fallback_order,
-		pageblock_order,
-		alloc_migratetype,
-		fallback_migratetype,
-		fallback_order < pageblock_order,
-		alloc_migratetype == fallback_migratetype);
+	unsigned long packed1 = alloc_order | (alloc_migratetype << 4);
+	unsigned long packed2 = fallback_order | (fallback_migratetype << 4);
+
+	kvm_hypercall4(KVM_HC_PASR_MM_PAGE_ALLOC_EXTFRAG, (unsigned long)page,
+			page ? page_to_pfn(page) : 0, packed1, packed2);
 }
 
 #endif
@@ -898,8 +869,8 @@ static void free_pcppages_bulk(struct zone *zone, int count,
 			__free_one_page(page, zone, 0, MIGRATE_UNMOVABLE);
 			trace_mm_page_pcpu_drain(page, 0, MIGRATE_UNMOVABLE);
 
-#ifdef CONFIG_PRINT_ALLOC_FREE_REQ
-			printk_mm_page_pcpu_drain(page, 0, MIGRATE_UNMOVABLE);
+#ifdef CONFIG_PASR_HYPERCALL
+			hc_mm_page_pcpu_drain(page, 0, MIGRATE_UNMOVABLE);
 #endif
 
 #endif
@@ -930,8 +901,8 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
 
 	trace_mm_page_free(page, order);
 
-#ifdef CONFIG_PRINT_ALLOC_FREE_REQ
-	printk_mm_page_free(page, order);
+#ifdef CONFIG_PASR_HYPERCALL
+	hc_mm_page_free(page, order);
 #endif
 
 	kmemcheck_free_shadow(page, order);
@@ -1275,8 +1246,8 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
 
 			trace_mm_page_alloc_extfrag(page, order, current_order,
 				start_migratetype, migratetype);
-#ifdef CONFIG_PRINT_ALLOC_FREE_REQ
-			printk_mm_page_alloc_extfrag(page, order, current_order,
+#ifdef CONFIG_PASR_HYPERCALL
+			hc_mm_page_alloc_extfrag(page, order, current_order,
 				start_migratetype, migratetype);
 #endif
 
@@ -1315,8 +1286,8 @@ retry_reserve:
 	}
 
 	trace_mm_page_alloc_zone_locked(page, order, migratetype);
-#ifdef CONFIG_PRINT_ALLOC_FREE_REQ
-	printk_mm_page_alloc_zone_locked(page, order, migratetype);
+#ifdef CONFIG_PASR_HYPERCALL
+	hc_mm_page_alloc_zone_locked(page, order, migratetype);
 #endif
 	return page;
 }
@@ -1573,8 +1544,8 @@ void free_hot_cold_page_list(struct list_head *list, int cold)
 	list_for_each_entry_safe(page, next, list, lru) {
 		trace_mm_page_free_batched(page, cold);
 
-#ifdef CONFIG_PRINT_ALLOC_FREE_REQ
-		printk_mm_page_free_batched(page, cold);
+#ifdef CONFIG_PASR_HYPERCALL
+		hc_mm_page_free_batched(page, cold);
 #endif
 		free_hot_cold_page(page, cold);
 	}
@@ -2749,8 +2720,8 @@ retry_cpuset:
 
 	trace_mm_page_alloc(page, order, gfp_mask, migratetype);
 
-#ifdef CONFIG_PRINT_ALLOC_FREE_REQ
-	printk_mm_page_alloc(page, order, gfp_mask, migratetype);
+#ifdef CONFIG_PASR_HYPERCALL
+	hc_mm_page_alloc(page, order, gfp_mask, migratetype);
 #endif
 
 #ifdef CONFIG_DEBUG_PAGE_ALLOC_ORDER

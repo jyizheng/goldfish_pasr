@@ -834,10 +834,6 @@ void __init mem_init(void)
 #ifdef CONFIG_PRINT_BUDDY_FREELIST
 	print_buddy_freelist();
 #endif
-	
-#ifdef CONFIG_PRINT_ALLOC_FREE_REQ
-	mem_initialized = 1;
-#endif
 
 }
 

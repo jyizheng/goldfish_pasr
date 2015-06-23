@@ -31,16 +31,9 @@ config MARK_PAGE_CACHE_ALLOC
 	bool "make page allocated for page cache visible"
 	default n
 
-config PRINT_ALLOC_FREE_REQ
-	bool "use printk to trace memory allocation and free request"
-	default n
-
 config PASR_HYPERCALL
 	bool "use hyper call to trace memory allocation and free request"
 	default n
-
-
-
 
 endmenu
 
