@@ -865,6 +865,10 @@ static void free_pcppages_bulk(struct zone *zone, int count,
 #ifndef CONFIG_DISABLE_PAGE_MOBILITY
 			__free_one_page(page, zone, 0, page_private(page));
 			trace_mm_page_pcpu_drain(page, 0, page_private(page));
+#ifdef CONFIG_PASR_HYPERCALL
+			hc_mm_page_pcpu_drain(page, 0, page_private(page));
+#endif
+
 #else
 			__free_one_page(page, zone, 0, MIGRATE_UNMOVABLE);
 			trace_mm_page_pcpu_drain(page, 0, MIGRATE_UNMOVABLE);
