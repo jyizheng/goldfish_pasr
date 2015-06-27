@@ -4474,7 +4474,6 @@ static void __meminit calculate_node_totalpages(struct pglist_data *pgdat,
 		totalpages += zone_spanned_pages_in_node(pgdat->node_id, i,
 								zones_size);
 	pgdat->node_spanned_pages = totalpages;
-
 	realtotalpages = totalpages;
 	for (i = 0; i < MAX_NR_ZONES; i++)
 		realtotalpages -=
@@ -4501,7 +4500,11 @@ static unsigned long __init usemap_size(unsigned long zone_start_pfn, unsigned l
 	usemapsize = roundup(zonesize, pageblock_nr_pages);
 	usemapsize = usemapsize >> pageblock_order;
 	usemapsize *= NR_PAGEBLOCK_BITS;
+#ifdef CONFIG_PASR_STUPID
+	usemapsize = roundup(usemapsize, 8 * sizeof(unsigned long) * 2);
+#else
 	usemapsize = roundup(usemapsize, 8 * sizeof(unsigned long));
+#endif
 
 	return usemapsize / 8;
 }
@@ -4590,14 +4593,19 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
 		size = zone_spanned_pages_in_node(nid, j, zones_size);
 		realsize = size - zone_absent_pages_in_node(nid, j,
 								zholes_size);
-
 		/*
 		 * Adjust realsize so that it accounts for how much memory
 		 * is used by this zone for memmap. This affects the watermark
 		 * and per-cpu initialisations
 		 */
+
+#ifdef CONFIG_PASR_STUPID
+		memmap_pages =
+			PAGE_ALIGN(size * sizeof(struct page) * 2) >> PAGE_SHIFT;
+#else
 		memmap_pages =
 			PAGE_ALIGN(size * sizeof(struct page)) >> PAGE_SHIFT;
+#endif
 		if (realsize >= memmap_pages) {
 			realsize -= memmap_pages;
 			if (memmap_pages)
@@ -4676,7 +4684,11 @@ static void __init_refok alloc_node_mem_map(struct pglist_data *pgdat)
 		start = pgdat->node_start_pfn & ~(MAX_ORDER_NR_PAGES - 1);
 		end = pgdat->node_start_pfn + pgdat->node_spanned_pages;
 		end = ALIGN(end, MAX_ORDER_NR_PAGES);
+#ifdef CONFIG_PASR_STUPID
+		size =  (end - start) * sizeof(struct page) * 2;
+#else
 		size =  (end - start) * sizeof(struct page);
+#endif
 		map = alloc_remap(pgdat->node_id, size);
 		if (!map)
 			map = alloc_bootmem_node_nopanic(pgdat, size);

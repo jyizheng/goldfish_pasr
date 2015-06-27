@@ -35,6 +35,10 @@ config PASR_HYPERCALL
 	bool "use hyper call to trace memory allocation and free request"
 	default n
 
+config PASR_STUPID
+	bool "stupid modifications"
+	default n
+
 endmenu
 
 source "arch/$SRCARCH/Kconfig"
