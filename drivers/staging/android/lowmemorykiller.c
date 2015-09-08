@@ -41,7 +41,7 @@
 #include <linux/rcupdate.h>
 #include <linux/notifier.h>
 
-static uint32_t lowmem_debug_level = 1;
+static uint32_t lowmem_debug_level = 5;
 static int lowmem_adj[6] = {
 	0,
 	1,
@@ -81,6 +81,7 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 	int other_file = global_page_state(NR_FILE_PAGES) -
 						global_page_state(NR_SHMEM);
 
+	printk(KERN_INFO "%s is called\n", __func__);
 	if (lowmem_adj_size < array_size)
 		array_size = lowmem_adj_size;
 	if (lowmem_minfree_size < array_size)
