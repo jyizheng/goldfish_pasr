@@ -1,4 +1,7 @@
 export ARCH=x86
-make goldfish_defconfig
+
+cp .config config.last
+
+#make goldfish_defconfig
 
 make menuconfig
