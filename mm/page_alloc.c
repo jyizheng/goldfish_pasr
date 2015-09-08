@@ -85,7 +85,10 @@ void print_buddy_freelist(void)
 	
 		for_each_migratetype_order(order, t) {
 			list_for_each(curr, &zone->free_area[order].free_list[t]) {
-				pfn = page_to_pfn(list_entry(curr, struct page, lru));
+				page = list_entry(curr, struct page, lru);
+				if (!page)
+					continue;
+				pfn = page_to_pfn(page);
 #ifndef CONFIG_LIB
 				printk(KERN_INFO "%lu %u %u %d\n",pfn, order, t, i);
 #else
@@ -106,6 +109,33 @@ out:
 }
 
 EXPORT_SYMBOL(print_buddy_freelist);
+
+void print_zone_pageset(void) {
+	unsigned int type;
+	struct zone *zone;
+	struct list_head *curr;
+	unsigned long pfn;
+
+	for_each_zone(zone) {
+		printk(KERN_INFO "I am zone %s\n", zone->name);
+		//for (type = 0; type < MIGRATE_TYPES; type++) {
+		for (type = 0; type < 1; type++) {
+			struct per_cpu_pages *pcp;
+			struct list_head *list;
+			pcp = &this_cpu_ptr(zone->pageset)->pcp;
+			list = &pcp->lists[type];
+
+			list_for_each(curr, list) {
+				pfn = page_to_pfn(list_entry(curr, struct page, lru));
+				printk(KERN_INFO "%lu ", pfn);
+			}
+		}
+	}
+	printk("\n");
+}
+
+EXPORT_SYMBOL(print_zone_pageset);
+
 #endif
 
 #ifdef CONFIG_PASR_HYPERCALL
@@ -330,7 +360,11 @@ int min_free_order_shift = 1;
  * free memory, to make space for new workloads. Anyone can allocate
  * down to the min watermarks controlled by min_free_kbytes above.
  */
+#ifndef CONFIG_PASR_STUPID
 int extra_free_kbytes = 0;
+#else
+int extra_free_kbytes = 1215;
+#endif
 
 static unsigned long __meminitdata nr_kernel_pages;
 static unsigned long __meminitdata nr_all_pages;
@@ -905,10 +939,6 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
 
 	trace_mm_page_free(page, order);
 
-#ifdef CONFIG_PASR_HYPERCALL
-	hc_mm_page_free(page, order);
-#endif
-
 	kmemcheck_free_shadow(page, order);
 
 	if (PageAnon(page))
@@ -941,8 +971,12 @@ static void __free_pages_ok(struct page *page, unsigned int order)
 	if (unlikely(wasMlocked))
 		free_page_mlock(page);
 	__count_vm_events(PGFREE, 1 << order);
+
 	free_one_page(page_zone(page), page, order,
 					get_pageblock_migratetype(page));
+#ifdef CONFIG_PASR_HYPERCALL
+	hc_mm_page_free(page, order);
+#endif
 	local_irq_restore(flags);
 }
 
@@ -1519,7 +1553,6 @@ void free_hot_cold_page(struct page *page, int cold)
 
 	pcp = &this_cpu_ptr(zone->pageset)->pcp;
 
-
 #ifndef CONFIG_SORT_FREELIST
 	if (cold)
 		list_add_tail(&page->lru, &pcp->lists[migratetype]);
@@ -1527,6 +1560,10 @@ void free_hot_cold_page(struct page *page, int cold)
 		list_add(&page->lru, &pcp->lists[migratetype]);
 #else
 		list_add_page_sorted(page, &pcp->lists[migratetype]);
+#endif
+
+#ifdef CONFIG_PASR_HYPERCALL
+	hc_mm_page_free(page, 0);
 #endif
 	pcp->count++;
 	if (pcp->count >= pcp->high) {
@@ -1666,7 +1703,6 @@ again:
 #else
 			page = list_entry(list->next, struct page, lru);
 #endif
-
 		list_del(&page->lru);
 		pcp->count--;
 	} else {
@@ -1694,11 +1730,17 @@ again:
 
 	__count_zone_vm_events(PGALLOC, zone, 1 << order);
 	zone_statistics(preferred_zone, zone, gfp_flags);
+
+#ifdef CONFIG_PASR_HYPERCALL
+	if (page)
+		hc_mm_page_alloc(page, order, gfp_flags, migratetype);
+#endif
 	local_irq_restore(flags);
 
 	VM_BUG_ON(bad_range(zone, page));
 	if (prep_new_page(page, order, gfp_flags))
 		goto again;
+
 	return page;
 
 failed:
@@ -2056,6 +2098,11 @@ zonelist_scan:
 			if (zone_watermark_ok(zone, order, mark,
 				    classzone_idx, alloc_flags))
 				goto try_this_zone;
+			//else {
+			//	printk(KERN_INFO 
+			//		"zone_watermark_ok: false, mark:%u\n", mark);
+			//	print_buddy_freelist();
+			//}
 
 			if (NUMA_BUILD && !did_zlc_setup && nr_online_nodes > 1) {
 				/*
@@ -2686,6 +2733,11 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
 	int migratetype = allocflags_to_migratetype(gfp_mask);
 	unsigned int cpuset_mems_cookie;
 
+#ifdef CONFIG_PASR_STUPID
+	BUG_ON(nodemask);
+	BUG_ON(zonelist != NODE_DATA(0)->node_zonelists + 0);
+#endif	
+
 	gfp_mask &= gfp_allowed_mask;
 
 	lockdep_trace_alloc(gfp_mask);
@@ -2717,6 +2769,7 @@ retry_cpuset:
 	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask, order,
 			zonelist, high_zoneidx, ALLOC_WMARK_LOW|ALLOC_CPUSET,
 			preferred_zone, migratetype);
+
 	if (unlikely(!page))
 		page = __alloc_pages_slowpath(gfp_mask, order,
 				zonelist, high_zoneidx, nodemask,
@@ -2724,9 +2777,6 @@ retry_cpuset:
 
 	trace_mm_page_alloc(page, order, gfp_mask, migratetype);
 
-#ifdef CONFIG_PASR_HYPERCALL
-	hc_mm_page_alloc(page, order, gfp_mask, migratetype);
-#endif
 
 #ifdef CONFIG_DEBUG_PAGE_ALLOC_ORDER
 	page_alloc_order[order]++;
@@ -5283,6 +5333,8 @@ void setup_per_zone_wmarks(void)
 	struct zone *zone;
 	unsigned long flags;
 
+	printk(KERN_INFO "min_free_kbytes:%u, extra_free_kbytes:%u\n",
+				min_free_kbytes, extra_free_kbytes);
 	/* Calculate total number of !ZONE_HIGHMEM pages */
 	for_each_zone(zone) {
 		if (!is_highmem(zone))
