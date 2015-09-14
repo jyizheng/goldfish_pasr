@@ -514,7 +514,6 @@ out:
  * put_page() function.  Its ->lru.prev holds the order of allocation.
  * This usage means that zero-order pages may not be compound.
  */
-
 static void free_compound_page(struct page *page)
 {
 	__free_pages_ok(page, compound_order(page));
@@ -613,13 +612,11 @@ static inline void set_page_order(struct page *page, int order)
 	set_page_private(page, order);
 	__SetPageBuddy(page);
 }
-
 static inline void rmv_page_order(struct page *page)
 {
 	__ClearPageBuddy(page);
 	set_page_private(page, 0);
 }
-
 /*
  * Locate the struct page for both the matching buddy in our
  * pair (buddy1) and the combined O(n+1) page they form (page).
@@ -1525,7 +1522,14 @@ void free_hot_cold_page(struct page *page, int cold)
 	unsigned long flags;
 	int migratetype;
 	int wasMlocked = __TestClearPageMlocked(page);
+#ifdef CONFIG_MM_OPT
+	bool is_region = (page->reg != NULL);
 
+	if (is_region) {
+		mm_region_free_page(page);
+		return;
+	}
+#endif
 	if (!free_pages_prepare(page, 0))
 		return;
 
@@ -1584,7 +1588,6 @@ void free_hot_cold_page_list(struct list_head *list, int cold)
 
 	list_for_each_entry_safe(page, next, list, lru) {
 		trace_mm_page_free_batched(page, cold);
-
 #ifdef CONFIG_PASR_HYPERCALL
 		hc_mm_page_free_batched(page, cold);
 #endif
@@ -2098,11 +2101,6 @@ zonelist_scan:
 			if (zone_watermark_ok(zone, order, mark,
 				    classzone_idx, alloc_flags))
 				goto try_this_zone;
-			//else {
-			//	printk(KERN_INFO 
-			//		"zone_watermark_ok: false, mark:%u\n", mark);
-			//	print_buddy_freelist();
-			//}
 
 			if (NUMA_BUILD && !did_zlc_setup && nr_online_nodes > 1) {
 				/*

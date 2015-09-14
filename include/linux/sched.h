@@ -2293,6 +2293,9 @@ static inline int sas_ss_flags(unsigned long sp)
  * Routines for handling mm_structs
  */
 extern struct mm_struct * mm_alloc(void);
+#ifdef CONFIG_MM_OPT
+extern void mm_alloc_domain(struct mm_struct * mm);
+#endif
 
 /* mmdrop drops the mm and the page tables */
 extern void __mmdrop(struct mm_struct *);

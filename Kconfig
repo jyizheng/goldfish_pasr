@@ -39,6 +39,9 @@ config PASR_STUPID
 	bool "stupid modifications"
 	default n
 
+config MM_OPT
+	bool "memory management opt"
+	default n
 endmenu
 
 source "arch/$SRCARCH/Kconfig"

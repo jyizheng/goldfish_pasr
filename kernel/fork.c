@@ -503,6 +503,19 @@ static void mm_init_aio(struct mm_struct *mm)
 #endif
 }
 
+#ifdef CONFIG_MM_OPT
+void mm_alloc_domain(struct mm_struct *mm)
+{
+	BUG_ON(mm == NULL);
+	mm->vmdomain = kmalloc(sizeof(struct mm_domain), GFP_KERNEL);
+	if (mm->vmdomain != NULL) {
+		INIT_LIST_HEAD(&mm->vmdomain->domlist_head);
+		mm->vmdomain->size = 0;
+		mm->vmdomain->cache_reg = NULL;
+	}
+}
+#endif
+
 static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p)
 {
 	atomic_set(&mm->mm_users, 1);
@@ -519,6 +532,9 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p)
 	mm->cached_hole_size = ~0UL;
 	mm_init_aio(mm);
 	mm_init_owner(mm, p);
+#ifdef CONFIG_MM_OPT
+	mm_alloc_domain(mm);
+#endif
 
 	if (likely(!mm_alloc_pgd(mm))) {
 		mm->def_flags = 0;

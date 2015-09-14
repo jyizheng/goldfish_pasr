@@ -159,6 +159,9 @@ struct page {
 	 */
 	void *shadow;
 #endif
+#ifdef CONFIG_MM_OPT
+	struct mm_region *reg;
+#endif
 }
 /*
  * The struct page can be forced to be double word aligned so that atomic ops
@@ -300,10 +303,33 @@ struct mm_rss_stat {
 	atomic_long_t count[NR_MM_COUNTERS];
 };
 
+#ifdef CONFIG_MM_OPT
+struct mm_region {
+	struct page *head;
+	int size;
+	int index;
+	struct list_head domlist;
+	struct list_head freelist;
+	int freesize;
+	struct mm_domain *dom;
+};
+
+struct mm_domain {
+	struct list_head domlist_head;
+	int size;
+	struct mm_region *cache_reg;
+};
+
+extern int mm_region_free_page(struct page *page);
+#endif
+
 struct mm_struct {
 	struct vm_area_struct * mmap;		/* list of VMAs */
 	struct rb_root mm_rb;
 	struct vm_area_struct * mmap_cache;	/* last find_vma result */
+#ifdef CONFIG_MM_OPT
+	struct mm_domain * vmdomain;		/* a domaim associate with the process */
+#endif
 #ifdef CONFIG_MMU
 	unsigned long (*get_unmapped_area) (struct file *filp,
 				unsigned long addr, unsigned long len,
