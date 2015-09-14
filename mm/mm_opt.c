@@ -12,7 +12,7 @@
 
 #include "internal.h"
 
-#define MM_OPT_REGION_ORDER	4U
+#define MM_OPT_REGION_ORDER	1U
 
 static bool free_pages_prepare_mm_opt(struct page *page)
 {
@@ -27,6 +27,7 @@ static bool free_pages_prepare_mm_opt(struct page *page)
 	page->mapping = NULL;
 	page->index = 0x0;
 	page->private = 0;
+	kernel_map_pages(page, 1, 0);
 
 	return true;
 }
@@ -190,7 +191,6 @@ struct page *alloc_pages_vma_mm_opt(gfp_t gfp_mask, int order,
 	struct mm_domain *dom;
 	struct page *page;
 	
-	goto normal;
 	BUG_ON(order != 0);
 
 	mm = vma->vm_mm;
