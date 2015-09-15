@@ -961,8 +961,10 @@ static void __free_pages_ok(struct page *page, unsigned int order)
 	unsigned long flags;
 	int wasMlocked = __TestClearPageMlocked(page);
 
-	if (!free_pages_prepare(page, order))
+	if (!free_pages_prepare(page, order)) {
+		pr_info("Page is not freed!\n");
 		return;
+	}
 
 	local_irq_save(flags);
 	if (unlikely(wasMlocked))
@@ -1524,15 +1526,30 @@ void free_hot_cold_page(struct page *page, int cold)
 	int wasMlocked = __TestClearPageMlocked(page);
 #ifdef CONFIG_MM_OPT
 	bool is_region = (page->reg != NULL);
-
-	if (is_region) {
-		mm_region_free_page(page);
-		return;
-	}
 #endif
 	if (!free_pages_prepare(page, 0))
 		return;
+#ifdef CONFIG_MM_OPT
+	if (is_region) {
+		unsigned long pfn1 = page_to_pfn(page->reg->head);
+		unsigned long pfn2 = page_to_pfn(page);
+		int size = page->reg->size;
 
+		BUG_ON(wasMlocked);
+		if (pfn2 >= pfn1 && pfn2 <= (pfn1 + size - 1)) {
+			local_irq_save(flags);
+			mm_region_free_page(page);
+			local_irq_restore(flags);
+			return;
+		} else 
+			pr_info("pfn1 is: %lu, pfn2:%lu\n", pfn1, pfn2);
+	}
+	if (page->reg != NULL) {
+		pr_info("size is: %d\n", page->reg->size);
+		dump_page(page);
+		BUG();
+	}
+#endif
 	migratetype = get_pageblock_migratetype(page);
 	set_page_private(page, migratetype);
 	local_irq_save(flags);

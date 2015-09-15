@@ -9,35 +9,39 @@
 #include <linux/pfn.h>
 #include <linux/gfp.h>
 #include <linux/slab.h>
+#include <linux/sched.h>
 
 #include "internal.h"
 
-#define MM_OPT_REGION_ORDER	1U
+#define MM_OPT_REGION_ORDER	4U
 
 static bool free_pages_prepare_mm_opt(struct page *page)
 {
-	if (page_mapcount(page) != 0) {
+	if (page_mapcount(page) != 0 || page->mapping != NULL
+		|| page_count(page) != 0) {
 		dump_page(page);
 		BUG();
 	}
 
-	set_page_count(page, 1);
 
+	set_page_count(page, 1);
 	page->flags = 0x40000000;
-	page->mapping = NULL;
 	page->index = 0x0;
 	page->private = 0;
-	kernel_map_pages(page, 1, 0);
-
+	page->mapping = NULL;
+	kernel_map_pages(page, 0, 0);
+	
 	return true;
 }
 
-static void prep_compound_page_mm_opt(struct page *page, unsigned long order)
+static void prep_compound_page_mm_opt(struct page *page,
+		unsigned long order)
 {
 	int i;
 	int nr_pages = 1 << order;
 
-	set_page_count(page, 0);
+	set_page_count(page, 1);
+	page->reg = NULL;
 	for (i = 1; i < nr_pages; i++) {
 		struct page *p = &page[i];
 		
@@ -48,17 +52,9 @@ static void prep_compound_page_mm_opt(struct page *page, unsigned long order)
 
 static void mm_region_free(struct mm_region *reg)
 {
-#if 0
-	int i;
-	int nr_pages = 1 << MM_OPT_REGION_ORDER;
-
-	for (i = 0; i < nr_pages; i++) {
-		struct page *p = &reg->head[i];
-
-		__free_pages(p, 0);
-	}
-#endif
 	unsigned int order = MM_OPT_REGION_ORDER;
+
+	BUG_ON(reg->head == NULL);
 	__free_pages(reg->head, order);
 }
 
@@ -67,10 +63,17 @@ static int destroy_compound_page_mm_opt(struct page *page, unsigned long order)
 	int i;
 	int nr_pages = 1 << order;
 	
+	if (page_count(page) != 1) {
+		dump_page(page);
+		BUG();
+	}
 	set_page_count(page, 1);
 	for (i = 1; i < nr_pages; i++) {
 		struct page *p = page + i;
-
+		if (page_count(p) != 0) {
+			dump_page(p);
+			BUG();
+		}
 		set_page_count(p, 1);
 	}
 
@@ -103,15 +106,6 @@ static struct mm_region *mm_alloc_region(gfp_t gfp_mask, struct mm_domain *dom)
 	reg->dom = dom;	
 
 	return reg;
-}
-
-/* Check whether a region is full */
-static bool mm_region_is_full(struct mm_region *reg)
-{
-	BUG_ON(reg == NULL);
-	if (reg->index == reg->size && reg->freesize == 0)
-		return true;
-	return false;
 }
 
 /* Try to allocate a page from NON-empty region */
@@ -148,9 +142,19 @@ int mm_region_free_page(struct page *page)
 		if (reg->dom->cache_reg == reg)
 			reg->dom->cache_reg = NULL;
 		reg->dom->size--;
+		reg->head = NULL;
 		kfree(reg);
 	}
 	return 0;
+}
+
+/* Check whether a region is full */
+static bool mm_region_is_full(struct mm_region *reg)
+{
+	VM_BUG_ON(reg == NULL);
+	if (reg->index == reg->size && reg->freesize == 0)
+		return true;
+	return false;
 }
 
 /*
@@ -161,7 +165,7 @@ static bool mm_domain_is_full(struct mm_domain *dom)
 {
 	struct mm_region *reg;
 
-	BUG_ON(dom == NULL);
+	VM_BUG_ON(dom == NULL);
 	list_for_each_entry(reg, &dom->domlist_head, domlist) {
 		if (!mm_region_is_full(reg))
 			return false;
@@ -175,7 +179,7 @@ static struct mm_region *mm_domain_find_region(struct mm_domain *dom)
 {
 	struct mm_region *reg;
 
-	BUG_ON(dom == NULL);
+	VM_BUG_ON(dom == NULL);
 	list_for_each_entry(reg, &dom->domlist_head, domlist) {
 		if (!mm_region_is_full(reg))
 			return reg;
@@ -191,8 +195,13 @@ struct page *alloc_pages_vma_mm_opt(gfp_t gfp_mask, int order,
 	struct mm_domain *dom;
 	struct page *page;
 	
-	BUG_ON(order != 0);
+	VM_BUG_ON(order != 0);
 
+	if ((gfp_mask & 0x1) == 0)
+		goto normal;
+	else
+		gfp_mask -= 0x1;
+	
 	mm = vma->vm_mm;
 	dom = mm->vmdomain;
 	
