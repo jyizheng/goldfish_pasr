@@ -26,7 +26,6 @@ static bool free_pages_prepare_mm_opt(struct page *page)
 
 	set_page_count(page, 1);
 	page->flags = 0x40000000;
-	//page->private = 0;
 	
 	return true;
 }
@@ -41,22 +40,22 @@ static void prep_compound_page_mm_opt(struct page *page,
 	page->reg = NULL;
 	page->flags = 0x40000000;
 	page->index = 0x0;
-	//page->private = 0;
 	page->mapping = NULL;
-
 
 	for (i = 1; i < nr_pages; i++) {
 		struct page *p = &page[i];
 
 		p->flags = 0x40000000;
 		p->index = 0x0;
-		//p->private = 0;
 		p->mapping = NULL;
 		set_page_count(p, 0);
 		p->reg = NULL;
 	}
 }
 
+/* This is for sanity check, when eveything 
+ * works fine disable it 
+ */
 static void check_free_region(struct mm_region *reg)
 {
 	struct page *page;
@@ -230,14 +229,6 @@ struct page *alloc_pages_vma_mm_opt(gfp_t gfp_mask, int order,
 	struct page *page;
 	
 	VM_BUG_ON(order != 0);
-
-	if ((gfp_mask & 0x1) == 0)
-		goto normal;
-	else
-		gfp_mask -= 0x1;
-
-	//goto normal;
-
 	
 	mm = vma->vm_mm;
 	dom = mm->vmdomain;
