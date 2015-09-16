@@ -1529,27 +1529,7 @@ void free_hot_cold_page(struct page *page, int cold)
 #endif
 	if (!free_pages_prepare(page, 0))
 		return;
-#ifdef CONFIG_MM_OPT
-	if (is_region) {
-		unsigned long pfn1 = page_to_pfn(page->reg->head);
-		unsigned long pfn2 = page_to_pfn(page);
-		int size = page->reg->size;
 
-		BUG_ON(wasMlocked);
-		if (pfn2 >= pfn1 && pfn2 <= (pfn1 + size - 1)) {
-			local_irq_save(flags);
-			mm_region_free_page(page);
-			local_irq_restore(flags);
-			return;
-		} else 
-			pr_info("pfn1 is: %lu, pfn2:%lu\n", pfn1, pfn2);
-	}
-	if (page->reg != NULL) {
-		pr_info("size is: %d\n", page->reg->size);
-		dump_page(page);
-		BUG();
-	}
-#endif
 	migratetype = get_pageblock_migratetype(page);
 	set_page_private(page, migratetype);
 	local_irq_save(flags);
@@ -1572,6 +1552,25 @@ void free_hot_cold_page(struct page *page, int cold)
 		migratetype = MIGRATE_MOVABLE;
 	}
 
+#ifdef CONFIG_MM_OPT
+	if (is_region) {
+		unsigned long pfn1 = page_to_pfn(page->reg->head);
+		unsigned long pfn2 = page_to_pfn(page);
+		int size = page->reg->size;
+
+		BUG_ON(wasMlocked);
+		if (pfn2 >= pfn1 && pfn2 <= (pfn1 + size - 1)) {
+			mm_region_free_page(page);
+			goto out;
+		} else 
+			pr_info("pfn1 is: %lu, pfn2:%lu\n", pfn1, pfn2);
+	}
+	if (page->reg != NULL) {
+		pr_info("size is: %d\n", page->reg->size);
+		dump_page(page);
+		BUG();
+	}
+#endif
 	pcp = &this_cpu_ptr(zone->pageset)->pcp;
 
 #ifndef CONFIG_SORT_FREELIST
@@ -6063,3 +6062,4 @@ void dump_page(struct page *page)
 	dump_page_flags(page->flags);
 	mem_cgroup_print_bad_page(page);
 }
+EXPORT_SYMBOL(dump_page);
