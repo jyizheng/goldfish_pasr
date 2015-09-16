@@ -25,7 +25,7 @@ struct address_space;
 #define USE_SPLIT_PTLOCKS	(NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS)
 
 /*
- * Each physical page in the system has a struct page associated with
+ * Each physical page in the system has a #endifstruct page associated with
  * it to keep track of whatever it is we are using the page for at the
  * moment. Note that we have no way to track which tasks are using
  * a page, though if it is a pagecache page, rmap structures can tell us

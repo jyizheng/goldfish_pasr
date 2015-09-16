@@ -419,10 +419,13 @@ static int page_outside_zone_boundaries(struct zone *zone, struct page *page)
 
 	do {
 		seq = zone_span_seqbegin(zone);
-		if (pfn >= zone->zone_start_pfn + zone->spanned_pages)
+		if (pfn >= zone->zone_start_pfn + zone->spanned_pages) {
+			pr_info("Here1\n");
 			ret = 1;
-		else if (pfn < zone->zone_start_pfn)
+		} else if (pfn < zone->zone_start_pfn) {
+			pr_info("Here2\n");
 			ret = 1;
+		}
 	} while (zone_span_seqretry(zone, seq));
 
 	return ret;
@@ -6056,8 +6059,8 @@ static void dump_page_flags(unsigned long flags)
 void dump_page(struct page *page)
 {
 	printk(KERN_ALERT
-	       "page:%p count:%d mapcount:%d mapping:%p index:%#lx\n",
-		page, atomic_read(&page->_count), page_mapcount(page),
+	       "page:%p pfn:%ld count:%d mapcount:%d mapping:%p index:%#lx\n",
+		page, page_to_pfn(page), atomic_read(&page->_count), page_mapcount(page),
 		page->mapping, page->index);
 	dump_page_flags(page->flags);
 	mem_cgroup_print_bad_page(page);

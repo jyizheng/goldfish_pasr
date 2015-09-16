@@ -16,6 +16,9 @@
 
 #define MM_OPT_REGION_ORDER	4U
 
+/* bit 31 and 30 is used for zone, see mm.h */
+#define MM_PAGE_ZONE_MASK	0xc0000000
+
 static bool free_pages_prepare_mm_opt(struct page *page)
 {
 	if (page_mapcount(page) != 0 || page->mapping != NULL
@@ -25,7 +28,7 @@ static bool free_pages_prepare_mm_opt(struct page *page)
 	}
 
 	set_page_count(page, 1);
-	page->flags = 0x40000000;
+	page->flags &= MM_PAGE_ZONE_MASK;
 	
 	return true;
 }
@@ -38,14 +41,14 @@ static void prep_compound_page_mm_opt(struct page *page,
 
 	set_page_count(page, 1);
 	page->reg = NULL;
-	page->flags = 0x40000000;
+	page->flags &= MM_PAGE_ZONE_MASK;
 	page->index = 0x0;
 	page->mapping = NULL;
 
 	for (i = 1; i < nr_pages; i++) {
 		struct page *p = &page[i];
 
-		p->flags = 0x40000000;
+		p->flags &= MM_PAGE_ZONE_MASK;
 		p->index = 0x0;
 		p->mapping = NULL;
 		set_page_count(p, 0);
@@ -262,8 +265,40 @@ normal:
 }
 
 /* Hijack page cache allocation */
-struct page *__page_cache_alloc_mm_opt(gfp_t gfp,
+struct page *__page_cache_alloc_mm_opt(gfp_t gfp_mask,
 			struct address_space *x)
 {
-	return alloc_pages(gfp, 0);
+	struct mm_domain *dom;
+	struct page *page;
+	
+	if (x == NULL)
+		goto normal;
+
+	dom = x->file_domain;
+	
+	if (dom->size == 0 || mm_domain_is_full(dom)) {
+		struct mm_region *reg = mm_alloc_region(gfp_mask, dom);
+
+		if (reg == NULL)
+			goto normal;
+		list_add(&reg->domlist, &dom->domlist_head);
+		dom->size++;
+		dom->cache_reg = reg;
+	}
+
+	if (dom->cache_reg == NULL || mm_region_is_full(dom->cache_reg)) {
+		struct mm_region *reg = mm_domain_find_region(dom);
+
+		if (reg == NULL)
+			goto normal;
+		dom->cache_reg = reg;
+	}
+
+	page = mm_region_alloc_page(dom->cache_reg, gfp_mask);
+	if (page == NULL) 
+		goto normal;
+	return page;
+
+normal:
+	return alloc_pages(gfp_mask, 0);
 }

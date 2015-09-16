@@ -533,6 +533,12 @@ struct page;
 struct address_space;
 struct writeback_control;
 
+#ifdef CONFIG_MM_OPT
+struct mm_region;
+struct mm_domain;
+extern void file_alloc_domain(struct address_space *mapping);
+#endif
+
 struct iov_iter {
 	const struct iovec *iov;
 	unsigned long nr_segs;
@@ -660,6 +666,9 @@ struct address_space {
 	spinlock_t		private_lock;	/* for use by the address_space */
 	struct list_head	private_list;	/* ditto */
 	struct address_space	*assoc_mapping;	/* ditto */
+#ifdef CONFIG_MM_OPT
+	struct mm_domain * file_domain;		/* a domaim associate with a file */
+#endif
 } __attribute__((aligned(sizeof(long))));
 	/*
 	 * On most architectures that alignment is already the case; but

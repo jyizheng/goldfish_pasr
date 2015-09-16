@@ -340,6 +340,19 @@ void inc_nlink(struct inode *inode)
 }
 EXPORT_SYMBOL(inc_nlink);
 
+#ifdef CONFIG_MM_OPT
+void file_alloc_domain(struct address_space *mapping)
+{
+	BUG_ON(mapping == NULL);
+	mapping->file_domain = kmalloc(sizeof(struct mm_domain), GFP_KERNEL);
+	if (mapping->file_domain != NULL) {
+		INIT_LIST_HEAD(&mapping->file_domain->domlist_head);
+		mapping->file_domain->size = 0;
+		mapping->file_domain->cache_reg = NULL;
+	}
+}
+#endif
+
 void address_space_init_once(struct address_space *mapping)
 {
 	memset(mapping, 0, sizeof(*mapping));
@@ -350,6 +363,9 @@ void address_space_init_once(struct address_space *mapping)
 	spin_lock_init(&mapping->private_lock);
 	INIT_RAW_PRIO_TREE_ROOT(&mapping->i_mmap);
 	INIT_LIST_HEAD(&mapping->i_mmap_nonlinear);
+#ifdef CONFIG_MM_OPT
+	file_alloc_domain(mapping);
+#endif	
 }
 EXPORT_SYMBOL(address_space_init_once);
 
