@@ -221,6 +221,7 @@ static struct mm_region *mm_domain_find_region(struct mm_domain *dom)
 	return NULL;
 }
 
+/* Hijake virtual process page allocation */
 struct page *alloc_pages_vma_mm_opt(gfp_t gfp_mask, int order,
 		struct vm_area_struct *vma, unsigned long addr)
 {
@@ -258,4 +259,11 @@ struct page *alloc_pages_vma_mm_opt(gfp_t gfp_mask, int order,
 normal:
 	page = alloc_pages(gfp_mask, order);
 	return page;
+}
+
+/* Hijack page cache allocation */
+struct page *__page_cache_alloc_mm_opt(gfp_t gfp,
+			struct address_space *x)
+{
+	return alloc_pages(gfp, 0);
 }
