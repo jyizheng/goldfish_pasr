@@ -35,11 +35,7 @@ struct memblock memblock __initdata_memblock = {
 	.current_limit		= MEMBLOCK_ALLOC_ANYWHERE,
 };
 
-#ifdef CONFIG_PASR_STUPID
-int memblock_debug __initdata_memblock = 1;
-#else
 int memblock_debug __initdata_memblock;
-#endif
 static int memblock_can_resize __initdata_memblock;
 static int memblock_memory_in_slab __initdata_memblock = 0;
 static int memblock_reserved_in_slab __initdata_memblock = 0;
@@ -444,11 +440,6 @@ int __init_memblock memblock_add_node(phys_addr_t base, phys_addr_t size,
 
 int __init_memblock memblock_add(phys_addr_t base, phys_addr_t size)
 {
-	memblock_dbg("memblock_add: [%#016llx-%#016llx] %pF\n",
-		     (unsigned long long)base,
-		     (unsigned long long)base + size,
-		     (void *)_RET_IP_);
-
 	return memblock_add_region(&memblock.memory, base, size, MAX_NUMNODES);
 }
 
@@ -543,10 +534,6 @@ static int __init_memblock __memblock_remove(struct memblock_type *type,
 
 int __init_memblock memblock_remove(phys_addr_t base, phys_addr_t size)
 {
-	memblock_dbg("   memblock_remove: [%#016llx-%#016llx] %pF\n",
-		     (unsigned long long)base,
-		     (unsigned long long)base + size,
-		     (void *)_RET_IP_);
 	return __memblock_remove(&memblock.memory, base, size);
 }
 
