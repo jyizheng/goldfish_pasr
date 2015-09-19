@@ -38,6 +38,11 @@ struct vm_area_struct;
 #define ___GFP_OTHER_NODE	0x800000u
 #define ___GFP_WRITE		0x1000000u
 
+#ifdef CONFIG_MM_OPT
+#define ___GFP_FILE_CACHE	0x2000000u
+#define ___GFP_VM_PAGE		0x4000000u
+#endif
+
 /*
  * GFP bitmasks..
  *
@@ -87,6 +92,11 @@ struct vm_area_struct;
 #define __GFP_NO_KSWAPD	((__force gfp_t)___GFP_NO_KSWAPD)
 #define __GFP_OTHER_NODE ((__force gfp_t)___GFP_OTHER_NODE) /* On behalf of other node */
 #define __GFP_WRITE	((__force gfp_t)___GFP_WRITE)	/* Allocator intends to dirty page */
+
+#ifdef CONFIG_MM_OPT
+#define __GFP_FILE_CACHE ((__force gfp_t)___GFP_FILE_CACHE)
+#define __GFP_VM_PAGE ((__force gfp_t)___GFP_VM_PAGE)
+#endif
 
 /*
  * This may seem redundant, but it's a way of annotating false positives vs.

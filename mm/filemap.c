@@ -43,6 +43,10 @@
 
 #include <asm/mman.h>
 
+#ifdef CONFIG_MM_OPT
+#include <linux/pagemap.h>
+#endif
+
 /*
  * Shared mappings implemented 30.11.1994. It's not fully working yet,
  * though.

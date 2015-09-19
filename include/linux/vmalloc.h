@@ -24,6 +24,13 @@ struct vm_area_struct;		/* vma defining user mapping in mm_types.h */
 #define IOREMAP_MAX_ORDER	(7 + PAGE_SHIFT)	/* 128 pages */
 #endif
 
+#ifdef CONFIG_MM_OPT
+#include <linux/mm_types.h>
+extern struct page *alloc_page_vmalloc(gfp_t gfp);
+extern struct page *alloc_pages_node_vmalloc(int node,
+			gfp_t gfp, int order);
+#endif
+
 struct vm_struct {
 	struct vm_struct	*next;
 	void			*addr;
@@ -33,6 +40,9 @@ struct vm_struct {
 	unsigned int		nr_pages;
 	phys_addr_t		phys_addr;
 	void			*caller;
+#ifdef CONFIG_MM_OPT
+	struct mm_domain	vmalloc_domain;/* associated domain*/
+#endif
 };
 
 /*

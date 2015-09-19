@@ -300,6 +300,11 @@ struct zone_reclaim_stat {
 	unsigned long		recent_scanned[2];
 };
 
+#ifdef CONFIG_MM_OPT
+#define ZONE_MAX_FILE_BANK	4
+#define ZONE_MAX_VM_BANK	4
+#endif
+
 struct zone {
 	/* Fields commonly accessed by the page allocator */
 
@@ -348,7 +353,16 @@ struct zone {
 	seqlock_t		span_seqlock;
 #endif
 	struct free_area	free_area[MAX_ORDER];
-
+#ifdef CONFIG_MM_OPT
+	unsigned long		nr_free_bank;
+	unsigned long		nr_file_bank;
+	unsigned long		nr_vm_bank;
+	struct free_area	free_bank_file[MAX_ORDER];
+	struct free_area	free_bank_vm[MAX_ORDER];
+	unsigned int		file_start_pfn[ZONE_MAX_FILE_BANK];
+	unsigned int		vm_start_pfn[ZONE_MAX_FILE_BANK];
+#endif
+	
 #ifndef CONFIG_SPARSEMEM
 	/*
 	 * Flags for a pageblock_nr_pages block. See pageblock-flags.h.

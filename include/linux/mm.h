@@ -22,7 +22,10 @@
 
 #ifdef CONFIG_PRINT_BUDDY_FREELIST
 extern void print_buddy_freelist(void);
-extern void print_zone_pageset(void);
+#endif
+
+#ifdef CONFIG_MM_OPT
+extern void post_zone_init(void);
 #endif
 
 #ifdef CONFIG_DEBUG_PAGE_ALLOC_ORDER

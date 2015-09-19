@@ -29,7 +29,10 @@ static bool free_pages_prepare_mm_opt(struct page *page)
 
 	set_page_count(page, 1);
 	page->flags &= MM_PAGE_ZONE_MASK;
-	
+	page->index = 0x0;
+	arch_free_page(page, 0);
+	kernel_map_pages(page, 1, 0);	
+
 	return true;
 }
 
@@ -146,7 +149,6 @@ static struct page* mm_region_alloc_page(struct mm_region *reg, gfp_t gfp_mask)
 	struct list_head *freelist = &reg->freelist;
 	struct page *page = NULL;
 	
-
 	if (reg->freesize > 0) {
 		page = list_entry(freelist->next, struct page, lru);
 		list_del(&page->lru);
@@ -158,8 +160,16 @@ static struct page* mm_region_alloc_page(struct mm_region *reg, gfp_t gfp_mask)
 		reg->index++;
 	}
 
-	if ((gfp_mask & __GFP_ZERO) && page)
-		clear_highpage(page);
+	if (page != NULL) {
+		arch_alloc_page(page, 0);
+		kernel_map_pages(page, 1, 1);
+	}
+
+	if ((gfp_mask & __GFP_ZERO) && page != NULL) {
+		void *kaddr = kmap_atomic(page);
+		memset(kaddr, 0, 4096);
+		kunmap_atomic(kaddr);
+	}
 	return page;
 }
 
@@ -236,7 +246,8 @@ struct page *alloc_pages_vma_mm_opt(gfp_t gfp_mask, int order,
 	
 	mm = vma->vm_mm;
 	dom = mm->vmdomain;
-	
+	gfp_mask |= __GFP_VM_PAGE;
+
 	if (dom->size == 0 || mm_domain_is_full(dom)) {
 		struct mm_region *reg = mm_alloc_region(gfp_mask, dom);
 
@@ -273,8 +284,9 @@ struct page *__page_cache_alloc_mm_opt(gfp_t gfp_mask,
 	
 	if (x == NULL)
 		goto normal;
-
+	
 	dom = x->file_domain;
+	gfp_mask |= __GFP_FILE_CACHE;
 	
 	if (dom->size == 0 || mm_domain_is_full(dom)) {
 		struct mm_region *reg = mm_alloc_region(gfp_mask, dom);
@@ -298,7 +310,17 @@ struct page *__page_cache_alloc_mm_opt(gfp_t gfp_mask,
 	if (page == NULL) 
 		goto normal;
 	return page;
-
 normal:
 	return alloc_pages(gfp_mask, 0);
+}
+
+struct page *alloc_page_vmalloc(gfp_t gfp)
+{
+	return alloc_page(gfp);
+}
+
+struct page *alloc_pages_node_vmalloc(int node,
+			gfp_t gfp, int order)
+{
+	return alloc_pages_node(node, gfp, order);
 }

@@ -42,6 +42,13 @@ config PASR_STUPID
 config MM_OPT
 	bool "memory management opt"
 	default n
+config GET_ORDER_0_LOG
+	bool "call dump_stack() when order is 0"
+	default n
+
+config FORCE_MAX_ZONEORDER
+	int "MAX_ZONEORDER"
+	default 15
 endmenu
 
 source "arch/$SRCARCH/Kconfig"
