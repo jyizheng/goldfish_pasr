@@ -1,7 +1,7 @@
 # Makefile for vm tools
 
 CC = $(CROSS_COMPILE)gcc
-CFLAGS = -Wall -Wextra
+CFLAGS = -Wall -Wextra -m32 -static
 
 all: page-types slabinfo
 %: %.c

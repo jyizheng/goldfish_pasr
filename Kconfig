@@ -49,6 +49,7 @@ config GET_ORDER_0_LOG
 config FORCE_MAX_ZONEORDER
 	int "MAX_ZONEORDER"
 	default 15
+
 endmenu
 
 source "arch/$SRCARCH/Kconfig"

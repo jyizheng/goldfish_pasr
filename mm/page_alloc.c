@@ -107,14 +107,14 @@ static bool page_inside_vm_area(struct page *page)
 	struct zone *zone = page_zone(page);
 	unsigned int *start_pfn = zone->vm_start_pfn;
 	unsigned int size = zone->nr_vm_bank;
-	unsigned long nr_pages = 1 << MAX_ORDER;
+	unsigned long nr_pages = 1 << (MAX_ORDER - 1);
 	unsigned long pfn1 = page_to_pfn(page);
-	int i;	
+	int i;
 
 	for (i = 0; i < size; i++)
 		if (pfn1 >= start_pfn[i] &&
 	     	    pfn1 <= start_pfn[i] + nr_pages - 1)
-			return true; 		
+			return true;
 	return false;
 }
 
@@ -123,14 +123,14 @@ static bool page_inside_file_area(struct page *page)
 	struct zone *zone = page_zone(page);
 	unsigned int *start_pfn = zone->file_start_pfn;
 	unsigned int size = zone->nr_file_bank;
-	unsigned long nr_pages = 1 << MAX_ORDER;
+	unsigned long nr_pages = 1 << (MAX_ORDER - 1);
 	unsigned long pfn1 = page_to_pfn(page);
-	int i;	
+	int i;
 
 	for (i = 0; i < size; i++)
 		if (pfn1 >= start_pfn[i] &&
 	     	    pfn1 <= start_pfn[i] + nr_pages - 1)
-			return true; 		
+			return true;
 	return false;
 }
 
@@ -159,6 +159,7 @@ static void reserve_file_free_area(struct zone *zone, unsigned long reserved)
 	for (i = 0; i < reserved; i++) {
 		struct page *page = list_entry(list->next, struct page, lru);
 
+		pr_info("file bank:%lx\n", page_to_pfn(page));
 		list_move(&page->lru, &zone->free_bank_file[order].free_list[t]);
 		zone->file_start_pfn[i] = page_to_pfn(page);
 		zone->free_area[order].nr_free--;
@@ -190,6 +191,7 @@ static void reserve_vm_free_area(struct zone *zone, unsigned long reserved)
 	for (i = 0; i < reserved; i++) {
 		struct page *page = list_entry(list->next, struct page, lru);
 
+		pr_info("vm bank:%lx\n", page_to_pfn(page));
 		list_move(&page->lru, &zone->free_bank_vm[order].free_list[t]);
 		zone->vm_start_pfn[i] = page_to_pfn(page);
 		zone->free_area[order].nr_free--;
@@ -1079,7 +1081,7 @@ static void free_one_page(struct zone *zone, struct page *page, int order,
 	spin_lock(&zone->lock);
 	zone->all_unreclaimable = 0;
 	zone->pages_scanned = 0;
-#ifdef CONFIG_MM_OPT	
+#ifdef CONFIG_MM_OPT
 	if (page_inside_vm_area(page))
 		__free_one_vm_page(page, zone, order);
 	else if (page_inside_file_area(page))
@@ -1963,10 +1965,12 @@ again:
 #ifdef CONFIG_MM_OPT
 		if (gfp_flags & __GFP_FILE_CACHE) {
 			page = __rmqueue_smallest_file(zone, order);
-			pr_info("alloc from file bank\n");
+			/* if (page)
+				pr_info("alloc from file bank\n"); */
 		} else if (gfp_flags & __GFP_VM_PAGE) {
 			page = __rmqueue_smallest_vm(zone, order);
-			pr_info("alloc from vm bank\n");
+			/* if (page)
+				pr_info("alloc from vm bank\n"); */
 		} else
 			page = __rmqueue(zone, order, migratetype);
 #else

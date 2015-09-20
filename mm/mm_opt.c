@@ -241,10 +241,23 @@ struct page *alloc_pages_vma_mm_opt(gfp_t gfp_mask, int order,
 	struct mm_struct *mm;
 	struct mm_domain *dom;
 	struct page *page;
+
+	gfp_t old_gfp_mask = gfp_mask;
 	
 	VM_BUG_ON(order != 0);
 	
 	mm = vma->vm_mm;
+
+	if (current->signal->oom_adj < 0)
+		goto normal;
+	if (current->parent->pid != 926)
+		goto normal;
+
+	pr_info("task is:%s, oom_adj:%d, oom_score_min:%d, flag:%x, ppid:%d, pid:%d\n",
+			current->comm, current->signal->oom_adj,
+			current->signal->oom_score_adj_min,
+			current->flags, current->parent->pid,
+			current->pid);
 	dom = mm->vmdomain;
 	gfp_mask |= __GFP_VM_PAGE;
 
@@ -271,7 +284,7 @@ struct page *alloc_pages_vma_mm_opt(gfp_t gfp_mask, int order,
 		goto normal;
 	return page;
 normal:
-	page = alloc_pages(gfp_mask, order);
+	page = alloc_pages(old_gfp_mask, order);
 	return page;
 }
 
@@ -281,7 +294,8 @@ struct page *__page_cache_alloc_mm_opt(gfp_t gfp_mask,
 {
 	struct mm_domain *dom;
 	struct page *page;
-	
+	gfp_t old_gfp_mask = gfp_mask;
+
 	if (x == NULL)
 		goto normal;
 	
@@ -311,7 +325,7 @@ struct page *__page_cache_alloc_mm_opt(gfp_t gfp_mask,
 		goto normal;
 	return page;
 normal:
-	return alloc_pages(gfp_mask, 0);
+	return alloc_pages(old_gfp_mask, 0);
 }
 
 struct page *alloc_page_vmalloc(gfp_t gfp)
