@@ -1063,6 +1063,10 @@ void set_task_comm(struct task_struct *tsk, char *buf)
 
 	trace_task_rename(tsk, buf);
 
+#ifdef CONFIG_MM_OPT
+	if (strcmp(buf, "zygote") == 0)
+		zygote_pid = tsk->pid;
+#endif
 	/*
 	 * Threads may access current->comm without holding
 	 * the task lock, so write the string carefully.

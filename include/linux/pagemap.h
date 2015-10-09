@@ -24,6 +24,9 @@ enum mapping_flags {
 	AS_ENOSPC	= __GFP_BITS_SHIFT + 1,	/* ENOSPC on async write */
 	AS_MM_ALL_LOCKS	= __GFP_BITS_SHIFT + 2,	/* under mm_take_all_locks() */
 	AS_UNEVICTABLE	= __GFP_BITS_SHIFT + 3,	/* e.g., ramdisk, SHM_LOCK */
+#if CONFIG_MM_OPT
+	AS_READONLY	= __GFP_BITS_SHIFT + 4,	/* read-only pages */
+#endif
 };
 
 static inline void mapping_set_error(struct address_space *mapping, int error)

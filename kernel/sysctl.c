@@ -117,6 +117,11 @@ extern int sysctl_nr_trim_pages;
 extern int blk_iopoll_enabled;
 #endif
 
+#ifdef CONFIG_MM_OPT
+extern int sysctl_compact_vm;
+extern int sysctl_compact_file;
+#endif
+
 /* Constants used for minimum and  maximum */
 #ifdef CONFIG_LOCKUP_DETECTOR
 static int sixty = 60;
@@ -1173,6 +1178,22 @@ static struct ctl_table vm_table[] = {
 		.extra1		= &one,
 		.extra2		= &three,
 	},
+#ifdef CONFIG_MM_OPT
+	{
+		.procname	= "compact_vm",
+		.data		= &sysctl_compact_vm,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= compact_vm_sysctl_handler,
+	},
+	{
+		.procname	= "compact_file",
+		.data		= &sysctl_compact_file,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= compact_file_sysctl_handler,
+	},
+#endif /* MM_OPT */
 #ifdef CONFIG_COMPACTION
 	{
 		.procname	= "compact_memory",

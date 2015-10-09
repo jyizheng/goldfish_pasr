@@ -536,7 +536,8 @@ struct writeback_control;
 #ifdef CONFIG_MM_OPT
 struct mm_region;
 struct mm_domain;
-extern void file_alloc_domain(struct address_space *mapping);
+extern void inode_alloc_domain(struct inode *inode);
+extern void inode_destroy_domain(struct inode *inode);
 #endif
 
 struct iov_iter {

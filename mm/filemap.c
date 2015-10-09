@@ -1646,6 +1646,10 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	pgoff_t size;
 	int ret = 0;
 
+#ifdef CONFIG_MM_OPT
+	if ((vma->vm_flags & VM_EXECUTABLE) && (vma->vm_flags & VM_DENYWRITE))
+		set_bit(AS_READONLY, &mapping->flags);
+#endif
 	size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 	if (offset >= size)
 		return VM_FAULT_SIGBUS;

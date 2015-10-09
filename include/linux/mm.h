@@ -22,10 +22,13 @@
 
 #ifdef CONFIG_PRINT_BUDDY_FREELIST
 extern void print_buddy_freelist(void);
+extern struct page *test_file_bank_alloc(unsigned int order, gfp_t gfp_mask);
 #endif
 
 #ifdef CONFIG_MM_OPT
+extern int zygote_pid;
 extern void post_zone_init(void);
+extern void free_mm_region(struct mm_region *reg);
 #endif
 
 #ifdef CONFIG_DEBUG_PAGE_ALLOC_ORDER
@@ -1586,6 +1589,12 @@ int drop_caches_sysctl_handler(struct ctl_table *, int,
 unsigned long shrink_slab(struct shrink_control *shrink,
 			  unsigned long nr_pages_scanned,
 			  unsigned long lru_pages);
+#ifdef CONFIG_MM_OPT
+int compact_file_sysctl_handler(struct ctl_table *, int,
+					void __user *, size_t *, loff_t *);
+int compact_vm_sysctl_handler(struct ctl_table *, int,
+					void __user *, size_t *, loff_t *);
+#endif
 
 #ifndef CONFIG_MMU
 #define randomize_va_space 0

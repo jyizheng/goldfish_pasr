@@ -504,6 +504,23 @@ static void mm_init_aio(struct mm_struct *mm)
 }
 
 #ifdef CONFIG_MM_OPT
+void mm_destroy_domain(struct mm_struct *mm)
+{
+	struct mm_domain *dom = mm->vmdomain;
+	struct mm_region *reg, *next;
+
+	if (dom == NULL || dom->size == 0) {
+		kfree(dom);
+		return;	
+	}
+
+	list_for_each_entry_safe(reg, next, &dom->domlist_head, domlist) {
+		if (reg->freesize == reg->index)
+			free_mm_region(reg); 
+	}
+	return;
+}
+
 void mm_alloc_domain(struct mm_struct *mm)
 {
 	BUG_ON(mm == NULL);
@@ -591,6 +608,9 @@ void __mmdrop(struct mm_struct *mm)
 	destroy_context(mm);
 	mmu_notifier_mm_destroy(mm);
 	check_mm(mm);
+#ifdef CONFIG_MM_OPT
+	mm_destroy_domain(mm);
+#endif
 	free_mm(mm);
 }
 EXPORT_SYMBOL_GPL(__mmdrop);

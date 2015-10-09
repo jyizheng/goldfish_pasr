@@ -303,6 +303,25 @@ struct zone_reclaim_stat {
 #ifdef CONFIG_MM_OPT
 #define ZONE_MAX_FILE_BANK	4
 #define ZONE_MAX_VM_BANK	4
+
+#include <linux/rbtree.h>
+struct zone;
+struct bank_extent {
+	unsigned long start_pfn;
+	unsigned long nr_pages;
+	struct rb_node ext_rb;
+};
+
+struct bank {
+	spinlock_t		lock;
+	struct free_area	free_area[MAX_ORDER];
+	struct rb_root ext_rb;
+};
+
+extern struct bank_extent *bank_extent_search(struct rb_root *root,
+		unsigned long pfn, unsigned size);
+extern int bank_extent_insert(struct rb_root *root,
+		struct bank_extent *ext);
 #endif
 
 struct zone {
@@ -355,14 +374,14 @@ struct zone {
 	struct free_area	free_area[MAX_ORDER];
 #ifdef CONFIG_MM_OPT
 	unsigned long		nr_free_bank;
-	unsigned long		nr_file_bank;
-	unsigned long		nr_vm_bank;
-	struct free_area	free_bank_file[MAX_ORDER];
-	struct free_area	free_bank_vm[MAX_ORDER];
+	unsigned long		nr_file_bank; /* around nf_free_bank/3 */
+	unsigned long		nr_vm_bank; /* around nf_free_bank/3 */
+	struct bank		free_bank_file[ZONE_MAX_FILE_BANK];
+	struct bank		free_bank_vm[ZONE_MAX_VM_BANK];
 	unsigned int		file_start_pfn[ZONE_MAX_FILE_BANK];
-	unsigned int		vm_start_pfn[ZONE_MAX_FILE_BANK];
+	unsigned int		vm_start_pfn[ZONE_MAX_VM_BANK];
 #endif
-	
+
 #ifndef CONFIG_SPARSEMEM
 	/*
 	 * Flags for a pageblock_nr_pages block. See pageblock-flags.h.
