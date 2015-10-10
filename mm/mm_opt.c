@@ -51,13 +51,17 @@ static inline void unmap_file_region(struct mm_region *reg)
 		/* For used page in the region, unmap it */
 		if (!is_region_free_page(page)) {
 			mapping = page_mapping(page);
-			if (page_mapped(page) && mapping)
+			if (page_mapped(page) && mapping) {
 				ret = try_to_unmap(page, TTU_UNMAP);
+				pr_info("unmaped page in region:%lx, ret:%d\n",
+						page_to_pfn(page), ret);
+			}
 			if (ret == SWAP_SUCCESS) {
-				pr_info("unmaped page in region\n");
+				__clear_page_locked(page);
+				continue;
 			}
 		}
-		__clear_page_locked(page);
+		unlock_page(page);
 	}
 }
 
